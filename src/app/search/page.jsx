@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import SearchBar from "@/components/SearchBar";
 import FilterPanel from "@/components/FilterPanel";
-import axios from "@/lib/axios";
+import axios from "axios";
 import Link from "next/link";
 
 // 1) Wrap your actual search results in a component that doesn't run until Suspense is ready
