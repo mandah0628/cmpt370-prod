@@ -31,7 +31,7 @@ function SearchResults() {
         if (desiredStartDate) queryObj.set("desiredStartDate", desiredStartDate);
         if (desiredEndDate) queryObj.set("desiredEndDate", desiredEndDate);
 
-        const response = await axios.get(`/search/tools?${queryObj.toString()}`);
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/search/tools?${queryObj.toString()}`);
 
         if (response.data.success) {
           setResults(response.data.listings || []);
