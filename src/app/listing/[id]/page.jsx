@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import axios from "@/lib/axios";
+import axios from "axios";
 import DatePicker from 'react-datepicker';
 import Image from 'next/image';
 import 'react-datepicker/dist/react-datepicker.css';
