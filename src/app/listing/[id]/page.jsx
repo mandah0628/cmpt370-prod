@@ -8,6 +8,20 @@ import DatePicker from "react-datepicker";
 import Image from "next/image";
 import "react-datepicker/dist/react-datepicker.css";
 
+// Helper: turn "YYYY-MM-DD" ranges into an array of actual Date objects
+function getDatesBetween(startStr, endStr) {
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  const dates = [];
+  let cur = new Date(start);
+
+  while (cur <= end) {
+    dates.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
 export default function ListingPage() {
   const params = useParams();
   const { id: listingId } = params;
@@ -16,7 +30,7 @@ export default function ListingPage() {
 
   // Listing + Reviews + Owner
   const [listing, setListing] = useState(null);
-  const [listingReviews, setListingReviews] = useState([]); 
+  const [listingReviews, setListingReviews] = useState([]);
   const [owner, setOwner] = useState(null);
 
   // UI states
@@ -27,6 +41,9 @@ export default function ListingPage() {
   const [dateRange, setDateRange] = useState([null, null]);
   const [startDate, endDate] = dateRange;
   const [submitting, setSubmitting] = useState(false);
+
+  // For excluding already booked dates
+  const [bookedDates, setBookedDates] = useState([]);
 
   // For user-review form (reviews the OWNER)
   const [showUserReviewForm, setShowUserReviewForm] = useState(false);
@@ -43,7 +60,7 @@ export default function ListingPage() {
   const [fullscreenImage, setFullscreenImage] = useState(null);
 
   // ──────────────────────────────────────────────────────────────────────────────
-  // Fetch the listing (with its embedded reviews) from the server
+  // Fetch the listing (with embedded reviews/reservations) from the server
   // ──────────────────────────────────────────────────────────────────────────────
   const fetchListing = async () => {
     try {
@@ -55,8 +72,6 @@ export default function ListingPage() {
         `${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/listing/get-listing/${listingId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      console.log(response);
 
       if (response.data.success) {
         const fetchedListing = response.data.listing;
@@ -87,6 +102,7 @@ export default function ListingPage() {
     }
   };
 
+  // Fetch listing on mount or if listingId/authState changes
   useEffect(() => {
     if (listingId) {
       fetchListing();
@@ -94,9 +110,23 @@ export default function ListingPage() {
   }, [listingId, authState]);
 
   // ──────────────────────────────────────────────────────────────────────────────
+  // Build the 'bookedDates' array from listing.reservations
+  // ──────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (listing && listing.reservations?.length > 0) {
+      // Flatten all date ranges into a single array of Date objects
+      const allBooked = listing.reservations.flatMap((res) =>
+        getDatesBetween(res.startDate, res.endDate)
+      );
+      setBookedDates(allBooked);
+    } else {
+      setBookedDates([]);
+    }
+  }, [listing]);
+
+  // ──────────────────────────────────────────────────────────────────────────────
   // Submissions
   // ──────────────────────────────────────────────────────────────────────────────
-
   // Listing Review
   const submitListingReview = async (e) => {
     e.preventDefault();
@@ -110,7 +140,7 @@ export default function ListingPage() {
       await axios.post(
         `${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/listing-review/create-review`,
         {
-          listingId, // Because we have listingId from params
+          listingId,
           reviewData: {
             rating: listingReviewRating,
             comment: listingReviewDescription,
@@ -119,10 +149,8 @@ export default function ListingPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Re-fetch the entire listing to show the new review
+      // Re-fetch listing to show new review
       await fetchListing();
-
-      // Reset form
       setShowListingReviewForm(false);
       setListingReviewRating(0);
       setListingReviewDescription("");
@@ -166,13 +194,14 @@ export default function ListingPage() {
     }
   };
 
-  // Reservation (via Axios POST)
+  // Reservation
   const handleReservation = async () => {
     if (submitting) return;
     if (!startDate || !endDate) {
       setError("Please select both start and end dates");
       return;
     }
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (start >= end) {
@@ -208,21 +237,15 @@ export default function ListingPage() {
             : null,
       };
 
-      // Directly POST with Axios, including the token
       await axios.post(
         `${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/reservation/create-reservation`,
         reservationData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Optionally store in localStorage if you want
-      localStorage.setItem("reservationData", JSON.stringify(reservationData));
-
-      // Show success or redirect
+      // Optionally store reservation info or do a redirect
       alert("Reservation created successfully!");
       setSubmitting(false);
-
-      // optionally: router.push("/some-confirmation-page");
     } catch (error) {
       console.error("Error in reservation process:", error);
       setError("There was a problem processing your reservation");
@@ -255,7 +278,7 @@ export default function ListingPage() {
           <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 24 24">
             <path
               d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 
-               9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
               fillOpacity="0.5"
             />
           </svg>
@@ -309,11 +332,6 @@ export default function ListingPage() {
 
   return (
     <div className="bg-white min-h-screen">
-      {/* 
-        REMOVED: the hidden form with method="GET" 
-        We now rely on Axios POST in handleReservation 
-      */}
-
       {/* Hero section */}
       <div className="bg-gray-100">
         <div className="container mx-auto px-4 py-6">
@@ -506,12 +524,7 @@ export default function ListingPage() {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M5 13l4 4L19 7"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                     </svg>
                     <span>Available for rent</span>
                   </div>
@@ -522,12 +535,7 @@ export default function ListingPage() {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M5 13l4 4L19 7"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                     </svg>
                     <span>{listing.category}</span>
                   </div>
@@ -540,12 +548,7 @@ export default function ListingPage() {
                           stroke="currentColor"
                           viewBox="0 0 24 24"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M5 13l4 4L19 7"
-                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                         </svg>
                         <span>{tag.name}</span>
                       </div>
@@ -580,9 +583,7 @@ export default function ListingPage() {
                       <div key={review.id} className="bg-gray-50 p-4 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">{renderStars(review.rating)}</div>
-                          <span className="text-sm text-gray-500">
-                            {formatDate(review.createdAt)}
-                          </span>
+                          <span className="text-sm text-gray-500">{formatDate(review.createdAt)}</span>
                         </div>
                         <div className="text-gray-800">{review.comment}</div>
                       </div>
@@ -681,6 +682,8 @@ export default function ListingPage() {
                     startDate={startDate}
                     endDate={endDate}
                     onChange={(update) => setDateRange(update)}
+                    // Here's the magic: exclude bookedDates
+                    excludeDates={bookedDates}
                     isClearable
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
                     placeholderText="Select start and end dates"
