@@ -79,7 +79,7 @@ export default function EditListingPage() {
 
     formToSend.append("listingId", listingId);
 
-    console.log(newTags);
+    
     try {
       const res = await axios.put(`${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/listing/edit-listing`, 
         formToSend, { headers: {Authorization : `Bearer ${token}`} }
@@ -100,6 +100,7 @@ export default function EditListingPage() {
 
   const fetchListingInfo = async () => {
     try {
+      const token = localStorage.getItem("token");
       // fetching
       setFetching(true);
       // sending get request with the listingId
