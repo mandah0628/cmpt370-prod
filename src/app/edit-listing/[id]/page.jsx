@@ -103,9 +103,10 @@ export default function EditListingPage() {
       // fetching
       setFetching(true);
       // sending get request with the listingId
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/listing/get-listing`,
-        { params: {listingId} }
-      )
+      const res = await axios.get(
+        `${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/listing/get-listing/${listingId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       // save the original 
       setOriginalData(res.data?.listing);
