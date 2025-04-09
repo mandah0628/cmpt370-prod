@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import axios from "axios";
-import DatePicker from 'react-datepicker';
-import Image from 'next/image';
-import 'react-datepicker/dist/react-datepicker.css';
+import DatePicker from "react-datepicker";
+import Image from "next/image";
+import "react-datepicker/dist/react-datepicker.css";
 
 export default function ListingPage() {
   const params = useParams();
@@ -16,7 +16,7 @@ export default function ListingPage() {
 
   // Listing + Reviews + Owner
   const [listing, setListing] = useState(null);
-  const [listingReviews, setListingReviews] = useState([]); // we store the listing's reviews here
+  const [listingReviews, setListingReviews] = useState([]); 
   const [owner, setOwner] = useState(null);
 
   // UI states
@@ -50,46 +50,41 @@ export default function ListingPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const response = await axios.get(
         `${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/listing/get-listing/${listingId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log(response.data.listing.reviews);
+
       if (response.data.success) {
         const fetchedListing = response.data.listing;
-        
         setListing(fetchedListing);
-        // IMPORTANT: reviews are at fetchedListing.reviews
         setListingReviews(fetchedListing.reviews || []);
 
         // Build an owner object
         if (fetchedListing.userId) {
           const ownerData = {
             id: fetchedListing.userId,
-            name: fetchedListing.user?.name || 'Tool Owner',
+            name: fetchedListing.user?.name || "Tool Owner",
             email: fetchedListing.user?.email,
             rating: fetchedListing.user?.rating || 0,
-            location: fetchedListing.location || 'Saskatoon, SK',
+            location: fetchedListing.location || "Saskatoon, SK",
             bio: fetchedListing.user?.bio || null,
-            profilePhoto: fetchedListing.user?.profilePhoto || null
+            profilePhoto: fetchedListing.user?.profilePhoto || null,
           };
           setOwner(ownerData);
         }
       } else {
-        setError(response.data.message || 'Failed to fetch listing');
+        setError(response.data.message || "Failed to fetch listing");
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message);
-      console.error('Error fetching listing:', err);
+      console.error("Error fetching listing:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // ──────────────────────────────────────────────────────────────────────────────
-  // useEffect: fetch the listing on mount or if listingId/authState changes
-  // ──────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (listingId) {
       fetchListing();
@@ -99,10 +94,11 @@ export default function ListingPage() {
   // ──────────────────────────────────────────────────────────────────────────────
   // Submissions
   // ──────────────────────────────────────────────────────────────────────────────
+
   // Listing Review
   const submitListingReview = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
 
     try {
       if (!authState) {
@@ -112,7 +108,7 @@ export default function ListingPage() {
       await axios.post(
         `${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/listing-review/create-review`,
         {
-          listingId,  // Because we have listingId from params
+          listingId, // Because we have listingId from params
           reviewData: {
             rating: listingReviewRating,
             comment: listingReviewDescription,
@@ -138,7 +134,7 @@ export default function ListingPage() {
   // User (Owner) Review
   const submitUserReview = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
 
     try {
       if (!authState) {
@@ -168,7 +164,7 @@ export default function ListingPage() {
     }
   };
 
-  // Reservation
+  // Reservation (via Axios POST)
   const handleReservation = async () => {
     if (submitting) return;
     if (!startDate || !endDate) {
@@ -183,10 +179,10 @@ export default function ListingPage() {
     }
 
     // Check if user is logged in
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!authState && !token) {
       setError("Please log in to make a reservation");
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
@@ -194,10 +190,9 @@ export default function ListingPage() {
     try {
       const nightsCount = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
       const totalPrice = nightsCount * listing.rate;
-      const formattedStartDate = start.toISOString().split('T')[0];
-      const formattedEndDate = end.toISOString().split('T')[0];
+      const formattedStartDate = start.toISOString().split("T")[0];
+      const formattedEndDate = end.toISOString().split("T")[0];
 
-      // Store reservation data in localStorage
       const reservationData = {
         listingId: listing.id,
         startDate: formattedStartDate,
@@ -210,21 +205,22 @@ export default function ListingPage() {
             ? listing.listingImages[0].url
             : null,
       };
-      localStorage.setItem('reservationData', JSON.stringify(reservationData));
 
-      // Slight delay then submit hidden form
-      setTimeout(() => {
-        try {
-          const form = document.getElementById('reservation-form');
-          const dataInput = document.getElementById('reservation-data');
-          dataInput.value = JSON.stringify(reservationData);
-          form.submit();
-        } catch (err) {
-          console.error("Form submission error:", err);
-          setError("Error submitting reservation");
-          setSubmitting(false);
-        }
-      }, 100);
+      // Directly POST with Axios, including the token
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_EXPRESS_BASE_URL}/reservation/create-reservation`,
+        reservationData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Optionally store in localStorage if you want
+      localStorage.setItem("reservationData", JSON.stringify(reservationData));
+
+      // Show success or redirect
+      alert("Reservation created successfully!");
+      setSubmitting(false);
+
+      // optionally: router.push("/some-confirmation-page");
     } catch (error) {
       console.error("Error in reservation process:", error);
       setError("There was a problem processing your reservation");
@@ -236,7 +232,7 @@ export default function ListingPage() {
   // Rendering & Helpers
   // ──────────────────────────────────────────────────────────────────────────────
   const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const options = { year: "numeric", month: "long", day: "numeric" };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
@@ -247,28 +243,26 @@ export default function ListingPage() {
 
     for (let i = 0; i < 5; i++) {
       if (i < fullStars) {
-        // Full star
         stars.push(
           <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 24 24">
             <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
           </svg>
         );
       } else if (i === fullStars && hasHalfStar) {
-        // Half star
         stars.push(
           <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 24 24">
             <path
               d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 
-              9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+               9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
               fillOpacity="0.5"
             />
           </svg>
         );
       } else {
-        // Empty star
         stars.push(
           <svg key={i} className="w-5 h-5 text-gray-300 fill-current" viewBox="0 0 24 24">
-            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 
+                     9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
           </svg>
         );
       }
@@ -278,11 +272,11 @@ export default function ListingPage() {
 
   const openFullscreen = (imageUrl) => {
     setFullscreenImage(imageUrl);
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
   };
   const closeFullscreen = () => {
     setFullscreenImage(null);
-    document.body.style.overflow = '';
+    document.body.style.overflow = "";
   };
 
   if (loading) {
@@ -313,15 +307,10 @@ export default function ListingPage() {
 
   return (
     <div className="bg-white min-h-screen">
-      {/* Hidden form for reservation submission */}
-      <form
-        id="reservation-form"
-        method="GET"
-        action="/create-reservation"
-        style={{ display: 'none' }}
-      >
-        <input id="reservation-data" type="hidden" name="data" value="" />
-      </form>
+      {/* 
+        REMOVED: the hidden form with method="GET" 
+        We now rely on Axios POST in handleReservation 
+      */}
 
       {/* Hero section */}
       <div className="bg-gray-100">
@@ -342,7 +331,7 @@ export default function ListingPage() {
                 strokeLinejoin="round"
                 strokeWidth="2"
                 d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 
-                8 0 1111.314 0z"
+                   8 0 1111.314 0z"
               />
               <path
                 strokeLinecap="round"
@@ -351,7 +340,7 @@ export default function ListingPage() {
                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            <span>{listing.location || 'Saskatoon, SK'}</span>
+            <span>{listing.location || "Saskatoon, SK"}</span>
 
             <span className="mx-2">•</span>
 
@@ -376,7 +365,12 @@ export default function ListingPage() {
               onClick={closeFullscreen}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
               </svg>
             </button>
             <div className="relative w-full h-full">
@@ -402,7 +396,7 @@ export default function ListingPage() {
             <div className="mb-10">
               <div
                 className="relative rounded-xl overflow-hidden mb-2 cursor-pointer"
-                style={{ width: '100%', paddingBottom: '56.25%' }}
+                style={{ width: "100%", paddingBottom: "56.25%" }}
                 onClick={() =>
                   listing.listingImages &&
                   listing.listingImages.length > 0 &&
@@ -438,11 +432,11 @@ export default function ListingPage() {
                       key={index}
                       className={`relative flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all ${
                         activeImageIndex === index
-                          ? 'border-orange-500 scale-105'
-                          : 'border-transparent'
+                          ? "border-orange-500 scale-105"
+                          : "border-transparent"
                       }`}
                       onClick={() => setActiveImageIndex(index)}
-                      style={{ width: '80px', height: '80px' }}
+                      style={{ width: "80px", height: "80px" }}
                     >
                       <Image
                         src={image.url}
@@ -572,20 +566,21 @@ export default function ListingPage() {
                       </svg>
                       <span className="ml-1 text-lg font-semibold">
                         {listingReviews.length} review
-                        {listingReviews.length !== 1 ? 's' : ''}
+                        {listingReviews.length !== 1 ? "s" : ""}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Loading spinner if you had a separate "reviewsLoading" – but we removed that logic now */}
                 {listingReviews.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {listingReviews.map((review) => (
                       <div key={review.id} className="bg-gray-50 p-4 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">{renderStars(review.rating)}</div>
-                          <span className="text-sm text-gray-500">{formatDate(review.createdAt)}</span>
+                          <span className="text-sm text-gray-500">
+                            {formatDate(review.createdAt)}
+                          </span>
                         </div>
                         <div className="text-gray-800">{review.comment}</div>
                       </div>
@@ -622,7 +617,7 @@ export default function ListingPage() {
                           <option value={0}>Select a rating...</option>
                           {[1, 2, 3, 4, 5].map((val) => (
                             <option key={val} value={val}>
-                              {val} star{val > 1 ? 's' : ''}
+                              {val} star{val > 1 ? "s" : ""}
                             </option>
                           ))}
                         </select>
@@ -695,7 +690,7 @@ export default function ListingPage() {
                     <div className="mb-5 p-4 bg-gray-50 rounded-lg">
                       <div className="flex justify-between mb-2">
                         <p className="text-gray-700">
-                          ${listing.rate} x{' '}
+                          ${listing.rate} x{" "}
                           {Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))} days
                         </p>
                         <p className="text-gray-700">
@@ -800,10 +795,10 @@ export default function ListingPage() {
                     <button
                       onClick={() => {
                         if (owner && owner.email) {
-                          localStorage.setItem('messageRecipient', owner.email);
-                          window.location.href = '/my-messages';
+                          localStorage.setItem("messageRecipient", owner.email);
+                          window.location.href = "/my-messages";
                         } else {
-                          window.location.href = '/my-messages';
+                          window.location.href = "/my-messages";
                         }
                       }}
                       className="w-full bg-white text-orange-600 font-medium py-2 px-4 border border-orange-600 rounded-lg text-center hover:bg-orange-50 transition-colors"
@@ -837,7 +832,7 @@ export default function ListingPage() {
                             <option value={0}>Select a rating...</option>
                             {[1, 2, 3, 4, 5].map((val) => (
                               <option key={val} value={val}>
-                                {val} star{val > 1 ? 's' : ''}
+                                {val} star{val > 1 ? "s" : ""}
                               </option>
                             ))}
                           </select>
