@@ -1,10 +1,7 @@
 import axios from 'axios';
 
 const instance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_EXPRESS_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  baseURL: process.env.NEXT_PUBLIC_EXPRESS_BASE_URL
 });
 
 // Add a request interceptor for debugging
