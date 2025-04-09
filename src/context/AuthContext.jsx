@@ -45,7 +45,7 @@ export default function AuthProvider ({ children }) {
       if (error.response?.status === 401) {
         setAuthState(false);
       } else {
-        console.error("Validation request failed:", error);
+        console.log("Validation request failed:", error);
       }
     } finally {
       setLoading(false);
